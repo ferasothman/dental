@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عيادة طب الأسنان - النظام الذكي المتكامل</title>
+    <!-- تحميل ملف المنطق في الهيد أولاً لضمان جاهزية المحرك -->
+    <script src="/static/js/app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .tooth-card:hover { transform: translateY(-3px) scale(1.05); }
+        .tooth-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+<div x-data="dentalApp()" x-init="initApp()">
+
+    <!-- 1. شاشة تهيئة النظام لأول مرة -->
+    <div x-show="!systemInitialized" class="fixed inset-0 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-white border border-slate-200 p-8 rounded-3xl max-w-md w-full shadow-2xl space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-teal-600 text-white text-3xl rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-teal-600/30">🦷</div>
+                <h3 class="text-2xl font-black text-slate-900">تهيئة العيادة لأول مرة</h3>
+                <p class="text-xs text-slate-500 font-bold">يرجى تسجيل حساب الطبيب المسؤول للبدء في استخدام النظام.</p>
+            </div>
+            <div class="space-y-3">
+                <input type="text" x-model="doctorSetupForm.full_name" placeholder="اسم الطبيب الكامل" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900">
+                <input type="text" x-model="doctorSetupForm.username" placeholder="اسم المستخدم للدخول" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                <input type="password" x-model="doctorSetupForm.password" placeholder="كلمة المرور" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                <button @click="submitDoctorSetup()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-3 rounded-xl text-sm transition shadow-md shadow-teal-600/20">تأكيد وإنشاء الحساب</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. شاشة تسجيل الدخول -->
+    <div x-show="systemInitialized && !isLoggedIn" class="fixed inset-0 bg-slate-100 flex items-center justify-center p-4 z-40">
+        <div class="bg-white border border-slate-200 p-8 rounded-3xl max-w-sm w-full shadow-xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-14 h-14 bg-gradient-to-tr from-teal-500 to-cyan-600 text-white text-2xl rounded-2xl flex items-center justify-center mx-auto shadow-md shadow-teal-500/20">🦷</div>
+                <h3 class="text-2xl font-black text-slate-900">تسجيل الدخول</h3>
+                <p class="text-xs text-slate-500 font-bold">بوابة عيادة طب الأسنان</p>
+            </div>
+            <div class="space-y-3">
+                <input type="text" x-model="loginForm.username" placeholder="اسم المستخدم..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                <input type="password" x-model="loginForm.password" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                <button @click="submitLogin()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-2.5 rounded-xl text-sm transition shadow-md shadow-teal-600/20">دخول إلى النظام</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. التطبيق ولوحة التحكم الرئيسية -->
+    <div x-show="isLoggedIn" class="flex h-screen overflow-hidden">
+
+        <!-- القائمة الجانبية مع فصل الصلاحيات الصريح بين الطبيب والسكرتيرة -->
+        <aside class="w-64 bg-white border-l border-slate-200 flex flex-col p-5 shadow-sm">
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-cyan-600 flex items-center justify-center text-2xl text-white shadow-md shadow-teal-500/20">🦷</div>
+                <div>
+                    <h1 class="font-black text-lg text-slate-900 leading-tight">عيادة طب الأسنان</h1>
+                    <p class="text-xs text-teal-700 font-bold mt-0.5" x-text="currentUser?.role === 'doctor' ? 'لوحة الطبيب' : 'لوحة السكرتيرة'"></p>
+                </div>
+            </div>
+
+            <nav class="space-y-1.5 flex-1">
+                <!-- الصفحات المتاحة للجميع (طبيب وسكرتيرة) -->
+                <button @click="currentTab = 'chart'" :class="currentTab === 'chart' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                    <span>📋</span> مخطط الأسنان والجلسات
+                </button>
+                <button @click="currentTab = 'lab'; loadLabOrders(); loadApprovedLabs();" :class="currentTab === 'lab' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                    <span>🔬</span> أعمال وتكاليف المخبر
+                </button>
+                <button @click="currentTab = 'finance'; loadExpenses(); loadFinancialReport();" :class="currentTab === 'finance' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                    <span>💰</span> المالية والمدفوعات
+                </button>
+                <button @click="currentTab = 'patients'" :class="currentTab === 'patients' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                    <span>👥</span> سجل المرضى
+                </button>
+                <button @click="currentTab = 'appointments'" :class="currentTab === 'appointments' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                    <span>📅</span> جدول المواعيد
+                </button>
+
+                <!-- صفحات خاصة وحصرية بالطبيب فقط (تختفي تماماً عند دخول السكرتيرة) -->
+                <template x-if="currentUser?.role === 'doctor'">
+                    <button @click="currentTab = 'users'; loadUsers();" :class="currentTab === 'users' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                        <span>👥⚙️</span> إدارة المستخدمين
+                    </button>
+                </template>
+                <template x-if="currentUser?.role === 'doctor'">
+                    <button @click="currentTab = 'conditions'" :class="currentTab === 'conditions' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                        <span>🏷️</span> الحالات الإكلينيكية
+                    </button>
+                </template>
+                <template x-if="currentUser?.role === 'doctor'">
+                    <button @click="currentTab = 'backup'" :class="currentTab === 'backup' ? 'bg-teal-50 text-teal-700 font-black border-teal-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl font-bold border border-transparent transition text-sm">
+                        <span>💾</span> النسخ الاحتياطي والأمان
+                    </button>
+                </template>
+            </nav>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-slate-900 block" x-text="currentUser?.full_name || 'طبيب العيادة'"></span>
+                    <span class="text-[10px] text-teal-700 font-bold" x-text="currentUser?.role === 'doctor' ? 'طبيب' : 'سكرتيرة'"></span>
+                </div>
+                <button @click="logout()" class="text-rose-600 hover:bg-rose-50 px-2.5 py-1 rounded-xl text-xs font-bold transition">خروج ✕</button>
+            </div>
+        </aside>
+
+        <!-- مساحة العمل الرئيسية -->
+        <main class="flex-1 overflow-y-auto p-8 space-y-6">
+
+            <!-- شريط الرأس -->
+            <header x-show="currentTab === 'chart' || currentTab === 'finance'" class="flex justify-between items-center bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <template x-if="currentPatient">
+                        <div class="bg-teal-50/80 border border-teal-200 px-4 py-2 rounded-2xl flex items-center gap-3">
+                            <span class="text-xl">👤</span>
+                            <div>
+                                <span class="text-sm font-black text-slate-900 block" x-text="currentPatient.full_name"></span>
+                                <span class="text-xs text-slate-500 font-semibold" x-text="currentPatient.phone"></span>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="relative w-80">
+                        <div class="flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-sm focus-within:border-teal-500 focus-within:bg-white transition">
+                            <span class="text-slate-400 ml-2">🔍</span>
+                            <input type="text" x-model="patientSearchQuery" @input="isSearching = true" placeholder="بحث سريع عن مريض..." class="bg-transparent w-full focus:outline-none text-slate-800 text-sm font-semibold">
+                        </div>
+                        <div x-show="isSearching && patientSearchQuery.length > 0" @click.away="isSearching = false" class="absolute top-12 right-0 w-full bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden max-h-60 overflow-y-auto">
+                            <template x-for="p in filteredPatients" :key="p.id">
+                                <div @click="selectPatient(p); isSearching = false;" class="p-3 hover:bg-teal-50 cursor-pointer border-b border-slate-100 flex justify-between items-center">
+                                    <div>
+                                        <span class="font-bold text-sm block text-slate-900" x-text="p.full_name"></span>
+                                        <span class="text-xs text-slate-500" x-text="p.phone"></span>
+                                    </div>
+                                    <span class="text-xs bg-slate-100 text-slate-600 font-mono px-2 py-1 rounded-lg" x-text="formatPatientId(p.id)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="currentTab === 'chart'">
+                    <button @click="showAddAppointmentModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2.5 rounded-2xl text-sm shadow-md shadow-teal-600/20 transition flex items-center gap-1.5">
+                        <span>📅</span> حجز موعد
+                    </button>
+                </div>
+            </header>
+
+            <!-- 1. مخطط الأسنان والجلسات -->
+            <div x-show="currentTab === 'chart'" class="space-y-6">
+                <section class="bg-white p-7 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-900">مخطط الأسنان السريري وجلسات العلاج</h3>
+                            <p class="text-sm text-slate-500 font-medium">انقر على أي سن لتشخيصه، تسجيل إجراءاته، ومراجعة سجل معالجاته</p>
+                        </div>
+                        <div class="flex gap-2 text-xs font-bold bg-slate-50 p-2.5 rounded-2xl border border-slate-200 flex-wrap">
+                            <template x-for="c in conditionsList.slice(0, 6)" :key="c.id">
+                                <span class="flex items-center gap-1.5">
+                                    <span class="w-3.5 h-3.5 rounded-full border border-slate-300" :style="'background-color:' + c.color"></span>
+                                    <span x-text="c.name"></span>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 max-w-6xl mx-auto py-2">
+                        <!-- الفك العلوي -->
+                        <div>
+                            <div class="text-center text-xs text-slate-400 mb-2 font-black tracking-wider uppercase">الفك العلوي (Upper Maxilla)</div>
+                            <div class="flex justify-center gap-2 overflow-x-auto pb-2">
+                                <template x-for="tooth in upperTeeth" :key="tooth.number">
+                                    <div class="flex flex-col items-center">
+                                        <button @click="openToothModal(tooth)" :style="getToothCardCustomStyle(tooth.number)" class="tooth-card w-14 h-24 rounded-2xl flex flex-col items-center justify-between p-1.5 border shadow-sm">
+                                            <span class="text-[11px] font-black opacity-80" x-text="tooth.number"></span>
+                                            <span class="text-2xl my-auto">🦷</span>
+                                            <span class="text-[10px] font-bold text-center leading-tight truncate max-w-full px-0.5" x-text="getToothConditionArabic(tooth.number)"></span>
+                                        </button>
+                                        <div class="h-5 flex items-center justify-center mt-1">
+                                            <template x-if="getToothSessionsCount(tooth.number) > 0">
+                                                <span class="bg-teal-700 text-white font-black text-[9px] px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap" x-text="getToothSessionsCount(tooth.number) + ' ج'"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-dashed border-slate-200"></div>
+
+                        <!-- الفك السفلي -->
+                        <div>
+                            <div class="flex justify-center gap-2 overflow-x-auto pb-2">
+                                <template x-for="tooth in lowerTeeth" :key="tooth.number">
+                                    <div class="flex flex-col items-center">
+                                        <button @click="openToothModal(tooth)" :style="getToothCardCustomStyle(tooth.number)" class="tooth-card w-14 h-24 rounded-2xl flex flex-col items-center justify-between p-1.5 border shadow-sm">
+                                            <span class="text-[10px] font-bold text-center leading-tight truncate max-w-full px-0.5" x-text="getToothConditionArabic(tooth.number)"></span>
+                                            <span class="text-2xl my-auto">🦷</span>
+                                            <span class="text-[11px] font-black opacity-80" x-text="tooth.number"></span>
+                                        </button>
+                                        <div class="h-5 flex items-center justify-center mt-1">
+                                            <template x-if="getToothSessionsCount(tooth.number) > 0">
+                                                <span class="bg-teal-700 text-white font-black text-[9px] px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap" x-text="getToothSessionsCount(tooth.number) + ' ج'"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="text-center text-xs text-slate-400 mt-1 font-black tracking-wider uppercase">الفك السفلي (Lower Mandible)</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- بطاقات المخبر والأشعة -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                            <div>
+                                <h4 class="font-bold text-slate-900 flex items-center gap-2"><span>🔬</span> أعمال المخبر لهذا المريض</h4>
+                                <p class="text-xs text-slate-400">التلبيسات والتركيبات قيد الإنجاز</p>
+                            </div>
+                            <button @click="showAddLabModal = true" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-3 py-1.5 rounded-xl border border-teal-200 transition">+ طلب عمل مخبري</button>
+                        </div>
+                        <div class="space-y-2 max-h-56 overflow-y-auto">
+                            <template x-for="order in currentPatientLabOrders" :key="order.id">
+                                <div class="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex justify-between items-center text-xs">
+                                    <div>
+                                        <span class="font-bold text-slate-900 block" x-text="order.work_type + (order.tooth_number ? ' (' + order.tooth_number + ')' : '')"></span>
+                                        <span class="text-[11px] text-slate-500" x-text="'المخبر: ' + order.lab_name + ' | لون: ' + (order.shade || '---')"></span>
+                                    </div>
+                                    <div class="text-left">
+                                        <span :class="getLabBadgeClass(order.status)" class="px-2 py-0.5 rounded-lg font-bold block mb-1" x-text="translateLabStatus(order.status)"></span>
+                                        <span class="text-[10px] text-slate-400" x-text="'تسليم: ' + (order.expected_date || 'غير محدد')"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="currentPatientLabOrders.length === 0" class="text-center py-6 text-xs text-slate-400 font-bold">لا توجد طلبات مخبرية لهذا المريض</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                            <div>
+                                <h4 class="font-bold text-slate-900 flex items-center gap-2"><span>📷</span> الصور الشعاعية (X-Rays)</h4>
+                                <p class="text-xs text-slate-400">صور الأشعة الذروية والبانوراما</p>
+                            </div>
+                            <button @click="showAddXRayModal = true" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-3 py-1.5 rounded-xl border border-teal-200 transition">+ إضافة صورة شعاعية</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 max-h-56 overflow-y-auto">
+                            <template x-for="img in currentPatientXRays" :key="img.id">
+                                <div class="group relative bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 aspect-square cursor-pointer" @click="viewXRay(img)">
+                                    <img :src="img.image_data" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-end justify-between p-2">
+                                        <span class="text-[10px] font-bold text-white truncate" x-text="img.title"></span>
+                                        <button @click.stop="deleteXRayAPI(img.id)" class="text-rose-400 hover:text-rose-200 text-xs font-bold p-1 bg-black/60 rounded-lg">🗑️</button>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="currentPatientXRays.length === 0" class="col-span-3 text-center py-6 text-xs text-slate-400 font-bold">لا توجد صور شعاعية لهذا المريض</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. تبويب أعمال وتكاليف المخبر -->
+            <div x-show="currentTab === 'lab'" class="space-y-6">
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                        <span class="text-xs font-bold text-slate-500 block mb-1">طلبات قيد التصنيع بالمخبر</span>
+                        <span class="text-2xl font-black text-amber-600" x-text="labOrders.filter(o => o.status === 'Sent' || o.status === 'In-Lab').length + ' عمل'"></span>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                        <span class="text-xs font-bold text-slate-500 block mb-1">أعمال وصلت للعيادة (جاهزة للتركيب)</span>
+                        <span class="text-2xl font-black text-teal-600" x-text="labOrders.filter(o => o.status === 'Received').length + ' عمل'"></span>
+                    </div>
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                        <span class="text-xs font-bold text-slate-500 block mb-1">إجمالي تكاليف المخابر المستحقة</span>
+                        <span class="text-2xl font-black text-rose-600" x-text="labOrders.reduce((sum, o) => sum + (o.lab_cost || 0), 0).toLocaleString() + ' ل.س'"></span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="col-span-2 bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-slate-900">سجل الأعمال المرسلة للمخابر السنية</h3>
+                                <p class="text-xs text-slate-500 font-bold">تتبع حالة الطبعات، ألوان الخزف، ومتابعة وصول التركيبات</p>
+                            </div>
+                            <button @click="showAddLabModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-teal-600/20">
+                                + إرسال عمل جديد
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-sm">
+                                <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                                    <tr>
+                                        <th class="py-3 px-3">المريض</th>
+                                        <th class="py-3 px-3">المخبر</th>
+                                        <th class="py-3 px-3">العمل والسن</th>
+                                        <th class="py-3 px-3">اللون</th>
+                                        <th class="py-3 px-3">التكلفة</th>
+                                        <th class="py-3 px-4">الحالة</th>
+                                        <th class="py-3 px-3 text-left">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="order in labOrders" :key="order.id">
+                                        <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                            <td class="py-3 px-3 font-bold text-slate-900" x-text="getPatientName(order.patient_id)"></td>
+                                            <td class="py-3 px-3 font-bold text-teal-800" x-text="order.lab_name"></td>
+                                            <td class="py-3 px-3 font-semibold text-slate-800" x-text="order.work_type + (order.tooth_number ? ' (' + order.tooth_number + ')' : '')"></td>
+                                            <td class="py-3 px-3 font-mono font-bold text-amber-700" x-text="order.shade || '---'"></td>
+                                            <td class="py-3 px-3 font-black text-rose-600" x-text="order.lab_cost.toLocaleString() + ' ل.س'"></td>
+                                            <td class="py-3 px-4"><span :class="getLabBadgeClass(order.status)" class="text-[11px] px-2 py-0.5 rounded-lg font-bold" x-text="translateLabStatus(order.status)"></span></td>
+                                            <td class="py-3 px-3 flex justify-end gap-1">
+                                                <button @click="updateLabStatus(order.id, 'Received')" class="text-[10px] bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-2 py-1 rounded-lg border border-teal-200">وصل ✓</button>
+                                                <button @click="updateLabStatus(order.id, 'Fitted')" class="text-[10px] bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 font-bold px-2 py-1 rounded-lg border border-blue-200">تركيب ★</button>
+                                                <button @click="deleteLabOrder(order.id)" class="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1.5 py-1">✕</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="labOrders.length === 0" class="p-8 text-center text-slate-400 font-bold text-xs">لا توجد أعمال مرسلة للمخابر حتى الآن</div>
+                        </div>
+                    </div>
+
+                    <!-- المخابر المعتمدة -->
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="border-b border-slate-100 pb-3">
+                            <h4 class="font-bold text-slate-900 text-base">المخابر السنية المعتمدة</h4>
+                            <p class="text-xs text-slate-400">قائمة المخابر التي تتعامل معها العيادة</p>
+                        </div>
+                        <div class="space-y-2 bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs">
+                            <span class="font-black text-slate-700 block">+ إضافة مخبر معتمد جديد</span>
+                            <input type="text" x-model="newApprovedLab.name" placeholder="اسم المخبر *" class="w-full bg-white border border-slate-200 rounded-xl p-2 font-bold text-slate-900">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" x-model="newApprovedLab.phone" placeholder="رقم الهاتف" class="bg-white border border-slate-200 rounded-xl p-2 text-left" dir="ltr">
+                                <input type="text" x-model="newApprovedLab.specialty" placeholder="التخصص" class="bg-white border border-slate-200 rounded-xl p-2 font-bold">
+                            </div>
+                            <button @click="submitAddApprovedLab()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-1.5 rounded-xl transition">حفظ المخبر</button>
+                        </div>
+                        <div class="space-y-2 max-h-60 overflow-y-auto">
+                            <template x-for="lab in approvedLabs" :key="lab.id">
+                                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-xs">
+                                    <div>
+                                        <span class="font-bold text-slate-900 block" x-text="lab.name"></span>
+                                        <span class="text-[10px] text-slate-500" x-text="(lab.specialty || 'عام') + ' | ' + (lab.phone || '')"></span>
+                                    </div>
+                                    <button @click="deleteApprovedLab(lab.id)" class="text-rose-500 hover:text-rose-700 font-bold p-1 text-xs" title="حذف">✕</button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. تبويب المالية والمدفوعات الشاملة -->
+            <div x-show="currentTab === 'finance'" class="space-y-6">
+                <div class="flex justify-between items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+                    <div class="flex bg-slate-100 p-1 rounded-2xl">
+                        <button type="button" @click="financeSubTab = 'patient'" :class="financeSubTab === 'patient' ? 'bg-white shadow text-teal-700 font-black' : 'text-slate-500 font-bold'" class="px-5 py-2 rounded-xl text-xs transition">كشف حساب المريض النشط</button>
+                        <button type="button" @click="financeSubTab = 'clinic'" :class="financeSubTab === 'clinic' ? 'bg-white shadow text-teal-700 font-black' : 'text-slate-500 font-bold'" class="px-5 py-2 rounded-xl text-xs transition">📊 الإدارة المالية العامة والتقارير</button>
+                    </div>
+                    <div x-show="financeSubTab === 'clinic'" class="flex items-center gap-2">
+                        <button @click="setReportPeriod('month')" class="text-xs bg-slate-50 hover:bg-teal-50 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl border border-slate-200">الشهر الحالي</button>
+                        <button @click="setReportPeriod('all')" class="text-xs bg-slate-50 hover:bg-teal-50 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl border border-slate-200">كل الفترات</button>
+                        <input type="date" x-model="reportFilter.start_date" class="bg-slate-50 border border-slate-200 text-xs font-bold p-1 rounded-xl">
+                        <span class="text-xs text-slate-400">إلى</span>
+                        <input type="date" x-model="reportFilter.end_date" class="bg-slate-50 border border-slate-200 text-xs font-bold p-1 rounded-xl">
+                        <button @click="loadFinancialReport()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition">تحديث التقرير 🔄</button>
+                    </div>
+                </div>
+
+                <div x-show="financeSubTab === 'patient'" class="space-y-6">
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-slate-500 block mb-1">إجمالي تكلفة العلاج</span>
+                            <span class="text-2xl font-black text-slate-900" x-text="financeSummary.total_cost.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-emerald-600 block mb-1">إجمالي المقبوضات</span>
+                            <span class="text-2xl font-black text-emerald-600" x-text="financeSummary.total_paid.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-rose-600 block mb-1">المتبقي على المريض</span>
+                            <span class="text-2xl font-black text-rose-600" x-text="financeSummary.balance_due.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-lg text-slate-900">سندات القبض والدفعات النقدية للمريض</h4>
+                            <button @click="showAddPaymentModal = true" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition">+ سند قبض جديد</button>
+                        </div>
+                        <table class="w-full text-right text-sm">
+                            <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                                <tr>
+                                    <th class="py-3 px-4">تاريخ الدفعة</th>
+                                    <th class="py-3 px-4">المبلغ المستلم</th>
+                                    <th class="py-3 px-4">طريقة الدفع</th>
+                                    <th class="py-3 px-4">ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="pay in financeSummary.payments" :key="pay.id">
+                                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                        <td class="py-3 px-4 font-semibold text-slate-600" x-text="pay.payment_date"></td>
+                                        <td class="py-3 px-4 font-black text-emerald-600 text-base" x-text="pay.amount.toLocaleString() + ' ل.س'"></td>
+                                        <td class="py-3 px-4 font-bold text-slate-700" x-text="pay.payment_method === 'Cash' ? 'نقداً' : 'تحويل'"></td>
+                                        <td class="py-3 px-4 text-slate-500 text-xs" x-text="pay.notes || '---'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div x-show="financeSubTab === 'clinic'" class="space-y-6">
+                    <div class="grid grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-slate-500 block mb-1">إيرادات العيادة (المقبوضات)</span>
+                            <span class="text-2xl font-black text-emerald-600" x-text="clinicReport.total_revenue.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-amber-600 block mb-1">مصاريف المخابر السنية</span>
+                            <span class="text-2xl font-black text-amber-600" x-text="clinicReport.total_lab_expenses.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                            <span class="text-xs font-bold text-rose-500 block mb-1">المصاريف التشغيلية (رواتب، إيجار...)</span>
+                            <span class="text-2xl font-black text-rose-500" x-text="clinicReport.total_clinic_expenses.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl border shadow-md" :class="clinicReport.net_profit >= 0 ? 'border-teal-200 bg-teal-50/20' : 'border-rose-200 bg-rose-50/20'">
+                            <span class="text-xs font-black block mb-1" :class="clinicReport.net_profit >= 0 ? 'text-teal-800' : 'text-rose-800'">
+                                صافي أرباح العيادة (Net Profit)
+                            </span>
+                            <span class="text-2xl font-black" :class="clinicReport.net_profit >= 0 ? 'text-teal-700' : 'text-rose-600'" x-text="clinicReport.net_profit.toLocaleString() + ' ل.س'"></span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                            <div>
+                                <h4 class="font-bold text-lg text-slate-900">سجل المصاريف العامة ومشتريات العيادة</h4>
+                                <p class="text-xs text-slate-500 font-bold">تسجيل ومتابعة مصاريف الرواتب، إيجار العيادة، النثريات، والمواد السنية</p>
+                            </div>
+                            <button @click="showAddExpenseModal = true" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-rose-600/20">
+                                + تسجيل مصروف جديد
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-right text-sm">
+                                <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                                    <tr>
+                                        <th class="py-3 px-4">التاريخ</th>
+                                        <th class="py-3 px-4">البند / البيان</th>
+                                        <th class="py-3 px-4">التصنيف</th>
+                                        <th class="py-3 px-4">المبلغ</th>
+                                        <th class="py-3 px-4">ملاحظات</th>
+                                        <th class="py-3 px-4 text-left">حذف</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="exp in clinicExpenses" :key="exp.id">
+                                        <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                            <td class="py-3 px-4 text-slate-600" x-text="exp.expense_date"></td>
+                                            <td class="py-3 px-4 font-bold text-slate-900" x-text="exp.title"></td>
+                                            <td class="py-3 px-4"><span class="text-[11px] bg-slate-100 px-2 py-0.5 rounded-lg font-bold text-slate-700" x-text="exp.category"></span></td>
+                                            <td class="py-3 px-4 font-black text-rose-600" x-text="exp.amount.toLocaleString() + ' ل.س'"></td>
+                                            <td class="py-3 px-4 text-slate-500 text-xs" x-text="exp.notes || '---'"></td>
+                                            <td class="py-3 px-4 text-left">
+                                                <button @click="deleteExpenseAPI(exp.id)" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div x-show="clinicExpenses.length === 0" class="p-8 text-center text-slate-400 font-bold text-xs">لا توجد مصاريف عامة مسجلة حتى الآن</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. تبويب سجل المرضى -->
+            <div x-show="currentTab === 'patients'" class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">سجل المرضى الكامل</h3>
+                        <p class="text-xs text-slate-500 font-bold">قائمة بجميع المرضى المسجلين في العيادة</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <input type="text" x-model="patientSearchTable" placeholder="🔍 بحث بالاسم، الهاتف، رقم الملف..." class="w-72 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-teal-500">
+                        <button @click="showAddPatientModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-teal-600/20">+ إضافة مريض جديد</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-sm">
+                        <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                            <tr>
+                                <th class="py-3 px-4">اسم المريض</th>
+                                <th class="py-3 px-4">الهاتف</th>
+                                <th class="py-3 px-4">الجنس</th>
+                                <th class="py-3 px-4">العمر</th>
+                                <th class="py-3 px-4">الحساسيات</th>
+                                <th class="py-3 px-4">إجراءات</th>
+                                <th class="py-3 px-4 text-left">رقم الملف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="p in filteredPatientsTable" :key="p.id">
+                                <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                    <td class="py-3 px-4 font-bold text-slate-900" x-text="p.full_name"></td>
+                                    <td class="py-3 px-4 text-slate-600" x-text="p.phone"></td>
+                                    <td class="py-3 px-4 text-slate-600" x-text="p.gender === 'Male' ? 'ذكر' : (p.gender === 'Female' ? 'أنثى' : '---')"></td>
+                                    <td class="py-3 px-4 font-semibold text-slate-700" x-text="p.age ? p.age + ' سنة' : '---'"></td>
+                                    <td class="py-3 px-4 text-rose-600 font-bold" x-text="p.allergies || 'سليم'"></td>
+                                    <td class="py-3 px-4 flex items-center gap-2">
+                                        <button @click="selectPatient(p); currentTab = 'chart'" class="text-xs bg-slate-100 hover:bg-teal-600 hover:text-white font-bold px-3 py-1 rounded-lg border border-slate-200">المخطط 🦷</button>
+                                        <button @click="openEditPatient(p)" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-3 py-1 rounded-lg border border-teal-200">تعديل ✏️</button>
+                                    </td>
+                                    <td class="py-3 px-4 font-mono font-bold text-slate-400 text-left text-xs" x-text="formatPatientId(p.id)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="filteredPatientsTable.length === 0" class="p-8 text-center text-slate-400 font-bold text-xs">لا توجد نتائج مطابقة لبحثك</div>
+                </div>
+            </div>
+
+            <!-- 5. تبويب جدول المواعيد -->
+            <div x-show="currentTab === 'appointments'" class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">جدول المواعيد والحجوزات</h3>
+                        <p class="text-xs text-slate-500 font-bold">متابعة مواعيد العيادة ومواعيد المرضى</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+                            <span class="text-xs font-bold text-slate-500">فلترة بالتاريخ:</span>
+                            <input type="date" x-model="appointmentDateFilter" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none">
+                            <button @click="appointmentDateFilter = new Date().toISOString().split('T')[0]" class="text-xs bg-teal-50 text-teal-700 font-bold px-2 py-0.5 rounded-lg border border-teal-200">اليوم</button>
+                            <button @click="appointmentDateFilter = ''" class="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-lg border border-slate-200">عرض الكل</button>
+                        </div>
+                        <button @click="showAddAppointmentModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-teal-600/20">+ حجز موعد جديد</button>
+                    </div>
+                </div>
+
+                <table class="w-full text-right text-sm">
+                    <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                        <tr>
+                            <th class="py-3 px-4">المريض</th>
+                            <th class="py-3 px-4">التاريخ</th>
+                            <th class="py-3 px-4">الوقت</th>
+                            <th class="py-3 px-4">الملاحظات</th>
+                            <th class="py-3 px-4">الحالة</th>
+                            <th class="py-3 px-4 text-left">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="apt in filteredAppointments" :key="apt.id">
+                            <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                <td class="py-3 px-4 font-bold text-slate-900" x-text="getPatientName(apt.patient_id)"></td>
+                                <td class="py-3 px-4 text-slate-600 font-semibold" x-text="apt.appointment_date"></td>
+                                <td class="py-3 px-4 font-mono font-bold text-teal-700" x-text="apt.appointment_time"></td>
+                                <td class="py-3 px-4 text-slate-500 text-xs" x-text="apt.notes || '---'"></td>
+                                <td class="py-3 px-4">
+                                    <span :class="getAppointmentStatusBadgeClass(apt.status)" class="text-[11px] font-bold px-2.5 py-1 rounded-xl" x-text="translateAppointmentStatus(apt.status)"></span>
+                                </td>
+                                <td class="py-3 px-4 flex justify-end gap-1.5">
+                                    <button @click="openEditAppointment(apt)" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-2.5 py-1 rounded-lg border border-teal-200 transition">تعديل ✏️</button>
+                                    <button @click="deleteAppointmentAPI(apt.id)" class="text-xs bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 font-bold px-2.5 py-1 rounded-lg border border-rose-200 transition">حذف 🗑️</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 6. تبويب إدارة المستخدمين (للطبيب فقط) -->
+            <div x-show="currentTab === 'users' && currentUser?.role === 'doctor'" class="space-y-6">
+                <div class="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">إدارة المستخدمين وحسابات العيادة</h3>
+                        <p class="text-xs text-slate-500 font-bold">إضافة وتعديل بيانات وحسابات الأطباء والسكرتاريا</p>
+                    </div>
+                    <button @click="showAddUserModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2.5 rounded-2xl text-xs transition shadow-md shadow-teal-600/20">+ إضافة مستخدم جديد</button>
+                </div>
+                <table class="w-full text-right text-sm bg-white p-6 rounded-3xl border border-slate-200">
+                    <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                        <tr>
+                            <th class="py-3 px-4">الاسم الكامل</th>
+                            <th class="py-3 px-4">اسم المستخدم</th>
+                            <th class="py-3 px-4">الدور</th>
+                            <th class="py-3 px-4 text-left">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="u in usersList" :key="u.id">
+                            <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                <td class="py-3 px-4 font-bold text-slate-900" x-text="u.full_name"></td>
+                                <td class="py-3 px-4 font-mono font-bold text-slate-600" x-text="u.username"></td>
+                                <td class="py-3 px-4"><span :class="u.role === 'doctor' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-700'" class="text-xs px-2.5 py-1 rounded-xl font-bold" x-text="u.role === 'doctor' ? 'طبيب' : 'سكرتيرة'"></span></td>
+                                <td class="py-3 px-4 flex justify-end gap-2">
+                                    <button @click="openEditUser(u)" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-3 py-1 rounded-lg border border-teal-200">تعديل ✏️</button>
+                                    <button @click="deleteUser(u)" x-show="u.id !== currentUser?.id" class="text-xs bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 font-bold px-3 py-1 rounded-lg border border-rose-200">حذف 🗑️</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 7. تبويب الحالات الإكلينيكية (للطبيب فقط) -->
+            <div x-show="currentTab === 'conditions' && currentUser?.role === 'doctor'" class="space-y-6">
+                <div class="flex justify-between items-center bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">إدارة الحالات السريرية وتخصيص الألوان</h3>
+                        <p class="text-xs text-slate-500 font-bold">تحديد ألوان كل حالة، ربطها بطلب المخبر، وتحديد التكلفة الافتراضية</p>
+                    </div>
+                    <button @click="showAddConditionModal = true" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2.5 rounded-2xl text-sm transition shadow-md shadow-teal-600/20">+ إضافة حالة جديدة</button>
+                </div>
+                <table class="w-full text-right text-sm bg-white p-6 rounded-3xl border border-slate-200">
+                    <thead class="text-xs text-slate-500 border-b border-slate-200 bg-slate-50">
+                        <tr>
+                            <th class="py-3 px-4">اسم الحالة السريرية</th>
+                            <th class="py-3 px-4">لون السن على المخطط</th>
+                            <th class="py-3 px-4">تتطلب مخبر سني؟</th>
+                            <th class="py-3 px-4">التكلفة الافتراضية</th>
+                            <th class="py-3 px-4 text-left">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="c in conditionsList" :key="c.id">
+                            <tr class="border-b border-slate-100 hover:bg-slate-50 text-xs">
+                                <td class="py-3 px-4 font-bold text-slate-900" x-text="c.name"></td>
+                                <td class="py-3 px-4 flex items-center gap-2">
+                                    <span class="w-5 h-5 rounded-full border border-slate-300 shadow-sm" :style="'background-color:' + c.color"></span>
+                                    <span class="text-xs font-mono text-slate-500" x-text="c.color"></span>
+                                </td>
+                                <td class="py-3 px-4"><span :class="c.requires_lab ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'" class="text-xs px-2.5 py-1 rounded-xl font-bold" x-text="c.requires_lab ? 'نعم 🔬' : 'لا'"></span></td>
+                                <td class="py-3 px-4 font-black text-slate-800" x-text="c.default_cost ? c.default_cost.toLocaleString() + ' ل.س' : '0 ل.س'"></td>
+                                <td class="py-3 px-4 flex justify-end gap-2">
+                                    <button @click="openEditCondition(c)" class="text-xs bg-teal-50 hover:bg-teal-600 hover:text-white text-teal-700 font-bold px-3 py-1 rounded-lg border border-teal-200">تعديل ✏️</button>
+                                    <button @click="deleteConditionAPI(c.id)" class="text-xs bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 font-bold px-2.5 py-1 rounded-lg border border-rose-200">حذف 🗑️</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 8. تبويب النسخ الاحتياطي والأمان (للطبيب فقط) -->
+            <div x-show="currentTab === 'backup' && currentUser?.role === 'doctor'" class="space-y-6">
+                <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-2">
+                    <h3 class="text-xl font-bold text-slate-900">إدارة النسخ الاحتياطي لقاعدة البيانات والأمان</h3>
+                    <p class="text-xs text-slate-500 font-bold">حفظ واسترجاع ملفات المرضى والمواعيد والمالية عبر تصدير واستيراد قاعدة البيانات</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center text-2xl font-black">📥</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 text-base">تنزيل نسخة احتياطية فورية</h4>
+                                <p class="text-xs text-slate-500">حفظ نسخة كاملة من قاعدة بيانات العيادة على جهازك</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                            يُنصح بتحميل نسخة احتياطية دورياً وحفظها على فلاشة USB أو وحدة تخزين خارجية لضمان سلامة بيانات المرضى في حال تعطل الحاسوب.
+                        </p>
+                        <a href="/api/v1/backup/download" class="block text-center w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-2xl text-xs transition shadow-md shadow-teal-600/20">
+                            تحميل نسخة قاعدة البيانات الآن (.db) 📥
+                        </a>
+                    </div>
+
+                    <div class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center text-2xl font-black">📤</div>
+                            <div>
+                                <h4 class="font-bold text-slate-900 text-base">استعادة نسخة احتياطية</h4>
+                                <p class="text-xs text-slate-500">رفع واسترجاع بيانات سابقة إلى العيادة</p>
+                            </div>
+                        </div>
+                        <p class="text-xs text-rose-600 leading-relaxed bg-rose-50 p-3.5 rounded-2xl border border-rose-200 font-bold">
+                            ⚠️ تنبيه: استعادة نسخة احتياطية ستقوم باستبدال البيانات الحالية بالبيانات الموجودة في الملف المرفوع.
+                        </p>
+                        <div>
+                            <input type="file" @change="handleBackupRestoreUpload($event)" accept=".db,.sqlite" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-700">
+                        </div>
+                        <button @click="submitRestoreBackupAPI()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-2xl text-xs transition shadow-md shadow-amber-600/20">
+                            بدء استعادة النسخة الاحتياطية 📤
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال السن الأساسي -->
+            <div x-show="selectedTooth" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-8 rounded-3xl max-w-xl w-full space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-xl font-mono font-black text-teal-700" x-text="selectedTooth?.number"></div>
+                            <div>
+                                <h4 class="text-xl font-black text-slate-900">الملف السريري للسن (<span x-text="selectedTooth?.number"></span>)</h4>
+                                <span class="text-xs text-slate-500 font-bold" x-text="'المريض: ' + (currentPatient?.full_name || 'غير محدد')"></span>
+                            </div>
+                        </div>
+                        <button @click="selectedTooth = null" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">✕</button>
+                    </div>
+
+                    <!-- تنبيه الصلاحية للسكرتيرة -->
+                    <div x-show="currentUser?.role === 'secretary'" class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-bold">
+                        ⚠️ وضع العرض السريري فقط (تسجيل وتعديل المعالجات متاح للطبيب فقط).
+                    </div>
+
+                    <!-- زر فتح السجل الزمني الكامل -->
+                    <button type="button" @click="showToothSessionsHistoryModal = true" class="w-full bg-slate-100 hover:bg-teal-50 text-slate-800 hover:text-teal-800 border border-slate-200 hover:border-teal-300 font-black py-3 px-4 rounded-2xl text-xs flex justify-between items-center transition">
+                        <span class="flex items-center gap-2"><span class="text-base">📂</span><span>استعراض السجل الكامل لمعالجات هذا السن</span></span>
+                        <span class="bg-teal-600 text-white px-2.5 py-0.5 rounded-xl font-mono font-black text-xs" x-text="currentToothSessions.length + ' جلسات'"></span>
+                    </button>
+
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                        <span class="text-xs font-black text-slate-800 block">تسجيل إجراء وتحديث حالة السن في هذه الزيارة</span>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">حالة السن على المخطط *</label>
+                                <select x-model="toothForm.condition" @change="onConditionChange()" :disabled="currentUser?.role === 'secretary'" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold disabled:opacity-50">
+                                    <template x-for="c in conditionsList" :key="c.id"><option :value="c.name" x-text="c.name"></option></template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-600 mb-1">تكلفة الجلسة (ل.س)</label>
+                                <input type="number" x-model="toothForm.cost" :disabled="currentUser?.role === 'secretary'" placeholder="0" class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-black text-teal-700 disabled:opacity-50">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">الأسطح المعالجة (MOD)</label>
+                            <input type="text" x-model="toothForm.surfaces" :disabled="currentUser?.role === 'secretary'" placeholder="M, O, D..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold disabled:opacity-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1.5">الإجراءات المنفذة (اختيار يدوي إضافي دون أي إجبار):</label>
+                            <div class="flex flex-wrap gap-1.5 mb-2">
+                                <template x-for="c in conditionsList" :key="c.id">
+                                    <button type="button" @click="toggleProcedureTag(c.name)" :disabled="currentUser?.role === 'secretary'" :class="isProcedureTagSelected(c.name) ? 'bg-teal-600 text-white font-black border-teal-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'" class="text-xs px-2.5 py-1 rounded-xl border transition disabled:opacity-50" x-text="'+ ' + c.name"></button>
+                                </template>
+                            </div>
+                            <input type="text" x-model="toothForm.procedures_summary" :disabled="currentUser?.role === 'secretary'" placeholder="نص الإجراءات الإضافية..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold disabled:opacity-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">ملاحظات الطبيب وتفاصيل العلاج</label>
+                            <textarea x-model="toothForm.notes" :disabled="currentUser?.role === 'secretary'" placeholder="ملاحظات سريرية، أطوال قنوات العصب..." class="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 h-16 disabled:opacity-50"></textarea>
+                        </div>
+                        <div x-show="selectedConditionObj?.requires_lab" class="p-3 bg-purple-50 border border-purple-200 rounded-2xl flex justify-between items-center">
+                            <span class="text-xs text-purple-900 font-bold">هذه المعالجة تتطلب إرسال طبعة للمخبر</span>
+                            <button type="button" @click="openLabOrderForCurrentTooth()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition">🔬 طلب مخبر</button>
+                        </div>
+                        
+                        <!-- زر الحفظ للطبيب فقط -->
+                        <template x-if="currentUser?.role === 'doctor'">
+                            <button @click="saveUnifiedToothProcedure()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-black py-2.5 rounded-xl text-xs transition shadow-md shadow-teal-600/20">
+                                حفظ الإجراء وتحديث السن وتسجيل الجلسة تلقائياً ✓
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- النافذة الفسيحة المستقلة لاستعراض السجل الزمني الكامل لمعالجات السن -->
+            <div x-show="showToothSessionsHistoryModal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-8 rounded-3xl max-w-4xl w-full space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center text-xl font-mono font-black shadow-md shadow-teal-600/20" x-text="selectedTooth?.number"></div>
+                            <div>
+                                <h3 class="text-2xl font-black text-slate-900">السجل السريري الكامل لمعالجات السن (<span x-text="selectedTooth?.number"></span>)</h3>
+                                <p class="text-xs text-slate-500 font-bold" x-text="'المريض: ' + (currentPatient?.full_name || 'غير محدد') + ' | عدد الجلسات: ' + currentToothSessions.length"></p>
+                            </div>
+                        </div>
+                        <button @click="showToothSessionsHistoryModal = false" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">✕</button>
+                    </div>
+                    <div class="space-y-4">
+                        <template x-for="(s, idx) in currentToothSessions" :key="s.id">
+                            <div class="p-5 bg-slate-50 hover:bg-white rounded-2xl border border-slate-200 hover:border-teal-300 transition shadow-xs space-y-3">
+                                <div class="flex justify-between items-start">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="bg-slate-200 text-slate-800 text-[11px] font-black px-2 py-0.5 rounded-lg" x-text="'جلسة #' + (currentToothSessions.length - idx)"></span>
+                                            <span class="font-black text-base text-slate-900" x-text="s.procedure_name"></span>
+                                        </div>
+                                        <span class="text-xs text-slate-500 font-bold flex items-center gap-1"><span>📅 تاريخ الجلسة:</span><span class="text-slate-800 font-mono" x-text="s.session_date"></span></span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-teal-800 bg-teal-100 text-sm px-3.5 py-1 rounded-xl" x-text="s.cost.toLocaleString() + ' ل.س'"></span>
+                                        <template x-if="currentUser?.role === 'doctor'">
+                                            <button @click="openEditSession(s)" class="text-xs bg-white hover:bg-teal-600 hover:text-white border border-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded-lg transition">تعديل ✏️</button>
+                                        </template>
+                                        <template x-if="currentUser?.role === 'doctor'">
+                                            <button @click="deleteSessionAPI(s.id)" class="text-xs bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 text-rose-600 font-bold px-2.5 py-1 rounded-lg transition">حذف 🗑️</button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <div x-show="s.notes" class="bg-white p-3 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed font-semibold">
+                                    <span class="text-slate-400 block text-[10px] mb-0.5">ملاحظات الطبيب:</span>
+                                    <p x-text="s.notes"></p>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="currentToothSessions.length === 0" class="p-12 text-center text-slate-400 font-bold text-sm bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                            لم يتم تسجيل أي جلسات علاج سابقة لهذا السن حتى الآن
+                        </div>
+                    </div>
+                    <div class="flex justify-end pt-3 border-t border-slate-100">
+                        <button @click="showToothSessionsHistoryModal = false" class="px-6 py-2.5 bg-slate-800 text-white font-bold rounded-2xl text-xs hover:bg-slate-700 transition">إغلاق السجل ✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال طلب عمل مخبري -->
+            <div x-show="showAddLabModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-lg w-full space-y-4 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h4 class="text-lg font-bold text-slate-900">إرسال عمل جديد للمخبر السني</h4>
+                        <button @click="showAddLabModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+                    </div>
+                    <select x-model="newLabOrder.patient_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <template x-for="p in patients" :key="p.id"><option :value="p.id" x-text="p.full_name + ' (' + p.phone + ')'"></option></template>
+                    </select>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select x-model="newLabOrder.lab_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-bold text-xs">
+                            <option value="">اختر المخبر المعتمد...</option>
+                            <template x-for="l in approvedLabs" :key="l.id"><option :value="l.name" x-text="l.name + ' (' + (l.specialty || 'عام') + ')'"></option></template>
+                        </select>
+                        <input type="text" x-model="newLabOrder.work_type" placeholder="نوع العمل *" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" x-model="newLabOrder.tooth_number" placeholder="رقم السن (مثال: 16)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <input type="text" x-model="newLabOrder.shade" placeholder="لون الخزف (A1, A2...)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-mono font-bold text-amber-700 text-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" x-model="newLabOrder.expected_date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-900 font-semibold text-xs">
+                        <input type="number" x-model="newLabOrder.lab_cost" placeholder="تكلفة المخبر (ل.س)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-900 font-black text-rose-600 text-xs">
+                    </div>
+                    <input type="number" x-model="newLabOrder.patient_price" placeholder="سعر المريض (ل.س)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-900 font-black text-teal-700 text-xs">
+                    <input type="text" x-model="newLabOrder.notes" placeholder="ملاحظات تفريغ، نقاط تماس..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-900 text-xs">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddLabModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitLabOrderAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">تثبيت الطلب ✓</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال تعديل الجلسة -->
+            <div x-show="showEditSessionModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">تعديل الجلسة العلاجية</h4>
+                    <input type="text" x-model="editSessionForm.procedure_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    <input type="number" x-model="editSessionForm.cost" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-black text-teal-700">
+                    <input type="text" x-model="editSessionForm.notes" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showEditSessionModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitEditSessionAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">حفظ التعديل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال تعديل الموعد -->
+            <div x-show="showEditAppointmentModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">تعديل الموعد</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" x-model="editAppointmentForm.appointment_date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <input type="time" x-model="editAppointmentForm.appointment_time" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                    </div>
+                    <select x-model="editAppointmentForm.status" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <option value="Booked">محجوز</option><option value="Completed">مكتمل</option><option value="Cancelled">ملغي</option><option value="No-Show">لم يحضر</option>
+                    </select>
+                    <input type="text" x-model="editAppointmentForm.notes" placeholder="ملاحظات الموعد..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 text-xs">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showEditAppointmentModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitEditAppointmentAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">حفظ التعديل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال حجز موعد جديد -->
+            <div x-show="showAddAppointmentModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-lg w-full space-y-4 shadow-xl">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <h4 class="text-lg font-bold text-slate-900">حجز موعد بالعيادة</h4>
+                        <button @click="showAddAppointmentModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+                    </div>
+                    <div class="flex bg-slate-100 p-1 rounded-2xl">
+                        <button type="button" @click="appointmentMode = 'existing'" :class="appointmentMode === 'existing' ? 'bg-white shadow text-teal-700 font-bold' : 'text-slate-500'" class="flex-1 py-1.5 rounded-xl text-xs transition">مريض مسجل مسبقاً</button>
+                        <button type="button" @click="appointmentMode = 'new'" :class="appointmentMode === 'new' ? 'bg-white shadow text-teal-700 font-bold' : 'text-slate-500'" class="flex-1 py-1.5 rounded-xl text-xs transition">+ مريض جديد لأول مرة</button>
+                    </div>
+                    <div x-show="appointmentMode === 'existing'" class="relative">
+                        <input type="text" x-model="appointmentPatientSearch" @input="showAptPatientDropdown = true" placeholder="ابحث عن مريض بالاسم أو الهاتف..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-sm">
+                        <div x-show="showAptPatientDropdown && appointmentPatientSearch.length > 0" @click.away="showAptPatientDropdown = false" class="absolute top-16 right-0 w-full bg-white border border-slate-200 rounded-2xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                            <template x-for="p in searchPatientsForAppointment" :key="p.id">
+                                <div @click="newAppointment.patient_id = p.id; appointmentPatientSearch = p.full_name; showAptPatientDropdown = false;" class="p-2.5 hover:bg-teal-50 cursor-pointer border-b border-slate-100 flex justify-between items-center text-xs">
+                                    <span class="font-bold text-slate-900" x-text="p.full_name"></span>
+                                    <span class="text-slate-500" x-text="p.phone"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div x-show="appointmentMode === 'new'" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="text" x-model="quickPatient.full_name" placeholder="الاسم الكامل *" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                            <input type="text" x-model="quickPatient.phone" placeholder="رقم الهاتف * (+9639...)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-left text-xs" dir="ltr">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <select x-model="quickPatient.gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs"><option value="">الجنس...</option><option value="Male">ذكر</option><option value="Female">أنثى</option></select>
+                            <input type="number" x-model="quickPatient.age" placeholder="العمر بالسنوات" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="date" x-model="newAppointment.appointment_date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <input type="time" x-model="newAppointment.appointment_time" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                    </div>
+                    <input type="text" x-model="newAppointment.notes" placeholder="ملاحظات الحجز..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 text-xs">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddAppointmentModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="handleBookAppointment()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">تثبيت الحجز</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال تعديل مريض -->
+            <div x-show="showEditPatientModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-lg w-full space-y-4 shadow-xl">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-lg font-bold text-slate-900">تعديل بيانات المريض</h4><button @click="showEditPatientModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" x-model="editPatientForm.full_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold" placeholder="الاسم الكامل *">
+                        <input type="text" x-model="editPatientForm.phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-left" dir="ltr" placeholder="رقم الهاتف *">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select x-model="editPatientForm.gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold"><option value="">الجنس...</option><option value="Male">ذكر</option><option value="Female">أنثى</option></select>
+                        <input type="number" x-model="editPatientForm.age" placeholder="العمر بالسنوات" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold">
+                    </div>
+                    <input type="text" x-model="editPatientForm.allergies" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900" placeholder="الحساسيات الدوائية...">
+                    <textarea x-model="editPatientForm.medical_notes" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 h-16" placeholder="ملاحظات طبية..."></textarea>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showEditPatientModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitEditPatientAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm">حفظ التعديلات</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال إضافة مريض -->
+            <div x-show="showAddPatientModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-lg w-full space-y-4 shadow-xl">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3"><h4 class="text-lg font-bold text-slate-900">تسجيل ملف مريض جديد</h4><button @click="showAddPatientModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" x-model="newPatient.full_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold" placeholder="الاسم الكامل *">
+                        <input type="text" x-model="newPatient.phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-left" dir="ltr" placeholder="رقم الهاتف *">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select x-model="newPatient.gender" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold"><option value="">الجنس...</option><option value="Male">ذكر</option><option value="Female">أنثى</option></select>
+                        <input type="number" x-model="newPatient.age" placeholder="العمر (سنة)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold">
+                    </div>
+                    <input type="text" x-model="newPatient.allergies" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900" placeholder="الحساسيات الدوائية...">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddPatientModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">إلغاء</button>
+                        <button @click="createPatientAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm">حفظ الملف الطبي</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودال إضافة مصروف -->
+            <div x-show="showAddExpenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">تسجيل مصروف جديد</h4>
+                    <input type="text" x-model="newExpense.title" placeholder="البيان (رواتب، إيجار، نثريات...)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" x-model="newExpense.amount" placeholder="المبلغ (ل.س) *" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-black text-rose-600">
+                        <input type="date" x-model="newExpense.expense_date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-slate-900 font-semibold text-xs">
+                    </div>
+                    <select x-model="newExpense.category" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold text-xs">
+                        <option value="رواتب وأجور">رواتب وأجور</option>
+                        <option value="إيجار العيادة">إيجار العيادة</option>
+                        <option value="نثريات وفواتير">نثريات وفواتير</option>
+                        <option value="مواد ومستهلكات أسنان">مواد ومستهلكات أسنان</option>
+                        <option value="صيانة وأجهزة">صيانة وأجهزة</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                    <input type="text" x-model="newExpense.notes" placeholder="ملاحظات..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 text-xs">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddExpenseModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitExpenseAPI()" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs">تسجيل المصروف</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مودالات الدفعات والأشعة والمستخدمين والحالات -->
+            <div x-show="showAddPaymentModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">سند قبض دفعة مالية</h4>
+                    <input type="number" x-model="newPayment.amount" placeholder="المبلغ المقبوض (ل.س) *" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-black text-lg">
+                    <select x-model="newPayment.payment_method" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900 font-semibold"><option value="Cash">نقداً</option><option value="Transfer">تحويل</option></select>
+                    <input type="text" x-model="newPayment.notes" placeholder="ملاحظات..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-900">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddPaymentModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">إلغاء</button>
+                        <button @click="savePaymentAPI()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm">إصدار السند</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="showAddXRayModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">إضافة صورة شعاعية للمريض</h4>
+                    <input type="text" x-model="newXRay.title" placeholder="عنوان الصورة (بانوراما، ذروية...)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900">
+                    <input type="file" @change="handleXRayUpload($event)" accept="image/*" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-700">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddXRayModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitXRayAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm">حفظ الصورة</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="viewingXRayImg" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-6 z-50" x-cloak @click="viewingXRayImg = null">
+                <div class="max-w-4xl max-h-[90vh] flex flex-col items-center gap-3" @click.stop>
+                    <img :src="viewingXRayImg?.image_data" class="max-w-full max-h-[80vh] rounded-2xl shadow-2xl border border-slate-700">
+                    <div class="flex items-center gap-3">
+                        <span class="text-white font-bold text-sm bg-black/60 px-4 py-1.5 rounded-full" x-text="viewingXRayImg?.title"></span>
+                        <button @click="deleteXRayAPI(viewingXRayImg.id); viewingXRayImg = null;" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-3 py-1.5 rounded-full transition">حذف الصورة ✕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="showAddUserModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">إضافة مستخدم</h4>
+                    <input type="text" x-model="newUserForm.full_name" placeholder="الاسم الكامل" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900">
+                    <input type="text" x-model="newUserForm.username" placeholder="اسم المستخدم" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                    <input type="password" x-model="newUserForm.password" placeholder="كلمة المرور" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900 text-left" dir="ltr">
+                    <select x-model="newUserForm.role" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-bold text-slate-900"><option value="secretary">سكرتيرة</option><option value="doctor">طبيب</option></select>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddUserModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-sm font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitCreateUser()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-sm">حفظ</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="showEditUserModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">تعديل حساب المستخدم</h4>
+                    <input type="text" x-model="editUserForm.full_name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    <input type="text" x-model="editUserForm.username" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold text-left" dir="ltr">
+                    <input type="password" x-model="editUserForm.password" placeholder="كلمة المرور الجديدة (اختياري)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 text-left" dir="ltr">
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showEditUserModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitEditUser()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">حفظ التعديلات</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="showAddConditionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">إضافة حالة سريرية جديدة</h4>
+                    <input type="text" x-model="newConditionForm.name" placeholder="اسم الحالة..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="color" x-model="newConditionForm.color" class="w-full h-10 p-1 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+                        <input type="number" x-model="newConditionForm.default_cost" placeholder="التكلفة الافتراضية" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    </div>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-800">هل تتطلب عملاً مخبرياً؟</span>
+                        <input type="checkbox" x-model="newConditionForm.requires_lab" class="w-4 h-4 text-teal-600 rounded">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showAddConditionModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitAddConditionAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">حفظ الحالة</button>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="showEditConditionModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" x-cloak>
+                <div class="bg-white border border-slate-200 p-6 rounded-3xl max-w-md w-full space-y-4 shadow-xl">
+                    <h4 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">تعديل الحالة السريرية</h4>
+                    <input type="text" x-model="editConditionForm.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="color" x-model="editConditionForm.color" class="w-full h-10 p-1 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer">
+                        <input type="number" x-model="editConditionForm.default_cost" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-bold">
+                    </div>
+                    <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-800">هل تتطلب عملاً مخبرياً؟</span>
+                        <input type="checkbox" x-model="editConditionForm.requires_lab" class="w-4 h-4 text-teal-600 rounded">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <button @click="showEditConditionModal = false" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">إلغاء</button>
+                        <button @click="submitEditConditionAPI()" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs">حفظ التعديلات</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+</div>
+
+</body>
+</html>

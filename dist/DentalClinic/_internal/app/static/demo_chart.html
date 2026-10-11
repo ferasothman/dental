@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نموذج تجريبي: مخطط الأسنان التفاعلي الحقيقي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .tooth-hotspot {
+            transition: all 0.18s ease;
+            cursor: pointer;
+        }
+        .tooth-hotspot:hover {
+            background-color: rgba(20, 184, 166, 0.25);
+            outline: 2px dashed #14b8a6;
+        }
+    </style>
+</head>
+<body class="text-white min-h-screen p-6 flex flex-col items-center justify-center" x-data="chartDemo()">
+
+    <div class="max-w-6xl w-full bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl space-y-6">
+        
+        <!-- الرأس ودليل الألوان -->
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+                <h2 class="text-2xl font-black text-teal-400">المخطط السريري التفاعلي للأسنان (Odontogram)</h2>
+                <p class="text-xs text-slate-400 mt-0.5">انقر على أي سن في الصورة لتجربة تلوين التاج أو الجذر أو القلع</p>
+            </div>
+            <!-- دليل الإجراءات -->
+            <div class="flex gap-3 text-xs font-bold bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-sky-500"></span> حشوة تاج</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-rose-500"></span> علاج عصب جذر</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-purple-500"></span> تلبيسة / تاج كامل</span>
+                <span class="flex items-center gap-1.5 text-slate-400">✕ مفقود / مقلوع</span>
+            </div>
+        </div>
+
+        <!-- لوحة الصورة التفاعلية -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-300 shadow-inner overflow-x-auto">
+            
+            <div class="relative min-w-[950px] mx-auto select-none">
+                
+                <!-- 1. أرقام الفك العلوي (18 إلى 28) -->
+                <div class="grid grid-cols-16 mb-2 text-center text-xs font-black text-slate-700">
+                    <template x-for="num in upperTeeth" :key="num">
+                        <div class="flex flex-col items-center">
+                            <span :class="getToothStatus(num) !== 'سليم' ? 'text-teal-600 font-black' : ''" x-text="num"></span>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 2. الصورة الأساسية مع طبقة التفاعل والتلوين -->
+                <div class="relative w-full aspect-[2.85/1] bg-white rounded-xl overflow-hidden">
+                    
+                    <!-- صورة المخطط الخاصة بك -->
+                    <img src="/static/dental_chart.png" alt="Dental Chart" class="w-full h-full object-contain pointer-events-none">
+
+                    <!-- شبكة التفاعل العلوية (16 سن في الفك العلوي) -->
+                    <div class="absolute top-0 left-0 w-full h-[48%] grid grid-cols-16">
+                        <template x-for="(num, idx) in upperTeeth" :key="num">
+                            <div @click="selectTooth(num)" class="tooth-hotspot relative h-full flex flex-col rounded-t-lg">
+                                
+                                <!-- طبقة تلوين الجذر العلوي (Root Overlay) -->
+                                <div class="h-[55%] w-full rounded-t-md transition" :style="getRootOverlayStyle(num)"></div>
+                                
+                                <!-- طبقة تلوين التاج العلوي (Crown Overlay) -->
+                                <div class="h-[45%] w-full rounded-b-md transition" :style="getCrownOverlayStyle(num)"></div>
+
+                                <!-- علامة القلع/المفقود إن وجدت -->
+                                <template x-if="treatments[num]?.type === 'مفقود'">
+                                    <div class="absolute inset-0 flex items-center justify-center text-2xl font-black text-rose-600/80">✕</div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- خط الفاصل الإطباقي في المنتصف -->
+                    <div class="absolute top-[49%] left-0 w-full h-0.5 border-b border-dashed border-slate-300 pointer-events-none"></div>
+
+                    <!-- شبكة التفاعل السفلية (16 سن في الفك السفلي) -->
+                    <div class="absolute bottom-0 left-0 w-full h-[48%] grid grid-cols-16">
+                        <template x-for="(num, idx) in lowerTeeth" :key="num">
+                            <div @click="selectTooth(num)" class="tooth-hotspot relative h-full flex flex-col rounded-b-lg">
+                                
+                                <!-- علامة القلع إن وجدت -->
+                                <template x-if="treatments[num]?.type === 'مفقود'">
+                                    <div class="absolute inset-0 flex items-center justify-center text-2xl font-black text-rose-600/80">✕</div>
+                                </template>
+
+                                <!-- طبقة تلوين التاج السفلي (Crown Overlay) -->
+                                <div class="h-[45%] w-full rounded-t-md transition" :style="getCrownOverlayStyle(num)"></div>
+
+                                <!-- طبقة تلوين الجذر السفلي (Root Overlay) -->
+                                <div class="h-[55%] w-full rounded-b-md transition" :style="getRootOverlayStyle(num)"></div>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+
+                <!-- 3. أرقام الفك السفلي (48 إلى 38) -->
+                <div class="grid grid-cols-16 mt-2 text-center text-xs font-black text-slate-700">
+                    <template x-for="num in lowerTeeth" :key="num">
+                        <div class="flex flex-col items-center">
+                            <span :class="getToothStatus(num) !== 'سليم' ? 'text-teal-600 font-black' : ''" x-text="num"></span>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- بطاقة المعاينة والتحكم بالسن المختار -->
+        <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-teal-600/20 text-teal-400 font-black rounded-2xl flex items-center justify-center text-lg border border-teal-500/30 font-mono">
+                    <span x-text="selectedToothNumber || '--'"></span>
+                </div>
+                <div>
+                    <span class="text-sm font-bold text-white block">
+                        السن المختار: <span class="text-teal-400" x-text="selectedToothNumber ? 'رقم ' + selectedToothNumber : 'انقر على سن لتعديل حالته'"></span>
+                    </span>
+                    <span class="text-xs text-slate-400" x-text="'الحالة الحالية: ' + getToothStatus(selectedToothNumber)"></span>
+                </div>
+            </div>
+
+            <!-- أزرار تغيير الحالة السريعة للتجربة -->
+            <div class="flex gap-2" x-show="selectedToothNumber">
+                <button @click="setTreatment('سليم')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-xl border border-slate-700">إعادة لسليم</button>
+                <button @click="setTreatment('حشوة')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-xs font-bold rounded-xl text-white">حشوة تاج (أزرق)</button>
+                <button @click="setTreatment('عصب')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-xs font-bold rounded-xl text-white">علاج عصب (جذر أحمر)</button>
+                <button @click="setTreatment('تلبيسة')" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-xs font-bold rounded-xl text-white">تلبيسة كاملة (بنفسجي)</button>
+                <button @click="setTreatment('مفقود')" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-bold rounded-xl text-rose-400">قلع / مفقود ✕</button>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+function chartDemo() {
+    return {
+        // ترتيب الأسنان الدقيق (18 إلى 28) و (48 إلى 38)
+        upperTeeth: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
+        lowerTeeth: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38],
+
+        selectedToothNumber: 11,
+
+        // بيانات تجريبية افتراضية مطابقة لصورة الشاشة للمعاينة فوراً
+        treatments: {
+            16: { type: 'تلبيسة', color: '#be123c' },   // أحمر كامل
+            11: { type: 'حشوة', color: '#0284c7' },     // تاج أزرق
+            25: { type: 'عصب', color: '#db2777' },      // جذر وردي
+            26: { type: 'حشوة', color: '#0284c7' },     // تاج أزرق
+            46: { type: 'عصب', color: '#db2777' },      // جذر سفلي وردي
+            36: { type: 'تلبيسة', color: '#be123c' }    // ضرس سفلي أحمر كامل
+        },
+
+        selectTooth(num) {
+            this.selectedToothNumber = num;
+        },
+
+        getToothStatus(num) {
+            if (!num || !this.treatments[num]) return 'سليم';
+            return this.treatments[num].type;
+        },
+
+        setTreatment(type) {
+            if (!this.selectedToothNumber) return;
+            if (type === 'سليم') {
+                delete this.treatments[this.selectedToothNumber];
+            } else if (type === 'حشوة') {
+                this.treatments[this.selectedToothNumber] = { type: 'حشوة', color: '#0284c7' };
+            } else if (type === 'عصب') {
+                this.treatments[this.selectedToothNumber] = { type: 'عصب', color: '#e11d48' };
+            } else if (type === 'تلبيسة') {
+                this.treatments[this.selectedToothNumber] = { type: 'تلبيسة', color: '#9333ea' };
+            } else if (type === 'مفقود') {
+                this.treatments[this.selectedToothNumber] = { type: 'مفقود' };
+            }
+        },
+
+        // تلوين التاج (Crown)
+        getCrownOverlayStyle(num) {
+            const t = this.treatments[num];
+            if (!t || t.type === 'مفقود') return '';
+            if (t.type === 'حشوة') {
+                return 'background-color: rgba(2, 132, 199, 0.65); border: 1px solid #0284c7;';
+            }
+            if (t.type === 'تلبيسة') {
+                return `background-color: ${t.color || '#9333ea'}; opacity: 0.7; border: 1px solid white;`;
+            }
+            return '';
+        },
+
+        // تلوين الجذر (Root)
+        getRootOverlayStyle(num) {
+            const t = this.treatments[num];
+            if (!t || t.type === 'مفقود') return '';
+            if (t.type === 'عصب') {
+                return 'background-color: rgba(225, 29, 72, 0.65); border: 1px solid #e11d48;';
+            }
+            if (t.type === 'تلبيسة') {
+                return `background-color: ${t.color || '#9333ea'}; opacity: 0.7;`;
+            }
+            return '';
+        }
+    }
+}
+</script>
+</body>
+</html>

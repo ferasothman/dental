@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معاينة الأسنان التشريحية الواقعية</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #0f172a; }
+        .tooth-container:hover { transform: scale(1.08); }
+        .tooth-container { transition: all 0.2s ease; cursor: pointer; }
+    </style>
+</head>
+<body class="text-white min-h-screen p-8 flex flex-col items-center justify-center">
+
+    <div class="max-w-5xl w-full bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-black text-teal-400">نموذج المعاينة التشريحي ثلاثي الأبعاد (3D Medical Atlas)</h2>
+            <p class="text-xs text-slate-400 mt-1">مطابق تماماً للصورة المرجعية: تمييز تشريحي للأضراس والأنياب والقواطع مع فصل تلوين التاج والجذر</p>
+        </div>
+
+        <!-- مخطط الفك العلوي -->
+        <div class="space-y-6">
+            <div class="text-center text-xs text-slate-400 font-bold tracking-widest">الفك العلوي (UPPER MAXILLA)</div>
+            
+            <div class="flex justify-center items-center gap-2 overflow-x-auto pb-4">
+                
+                <!-- السن 16: ضرس علوي مع تلوين كامل أحمر (مطابق للصورة) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">16</span>
+                    <svg class="w-12 h-24" viewBox="0 0 50 100" fill="none">
+                        <defs>
+                            <linearGradient id="root16" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#991b1b"/>
+                                <stop offset="50%" stop-color="#dc2626"/>
+                                <stop offset="100%" stop-color="#7f1d1d"/>
+                            </linearGradient>
+                            <linearGradient id="crown16" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#dc2626"/>
+                                <stop offset="50%" stop-color="#ef4444"/>
+                                <stop offset="100%" stop-color="#b91c1c"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- 3 جذور علوية واقعية -->
+                        <path d="M12 4 C10 18 16 38 18 45 C15 35 15 15 15 4" fill="url(#root16)"/>
+                        <path d="M25 2 C23 18 24 38 25 45 C27 35 28 15 28 2" fill="url(#root16)"/>
+                        <path d="M38 4 C40 18 34 38 32 45 C35 35 35 15 35 4" fill="url(#root16)"/>
+                        <!-- تاج ضرس ثلاثي الشرفات -->
+                        <path d="M10 45 C7 48 5 65 7 78 C9 85 16 92 25 92 C34 92 41 85 43 78 C45 65 43 48 40 45 C34 47 28 44 25 44 C22 44 16 47 10 45 Z" fill="url(#crown16)"/>
+                    </svg>
+                    <span class="text-[9px] text-rose-400 font-bold mt-1">عصب كامل</span>
+                </div>
+
+                <!-- السن 15: ضاحك علوي طبيعي (سليم) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">15</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <defs>
+                            <linearGradient id="natRoot" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#d4b996"/>
+                                <stop offset="50%" stop-color="#f5e6d3"/>
+                                <stop offset="100%" stop-color="#c2a37d"/>
+                            </linearGradient>
+                            <linearGradient id="natCrown" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#e2e8f0"/>
+                                <stop offset="40%" stop-color="#ffffff"/>
+                                <stop offset="100%" stop-color="#f1f5f9"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M18 5 C16 20 18 38 19 45 C22 38 24 20 22 5 Z" fill="url(#natRoot)"/>
+                        <path d="M8 45 C5 50 6 70 9 80 C12 88 17 90 20 90 C23 90 28 88 31 80 C34 70 35 50 32 45 C27 47 23 45 20 45 C17 45 13 47 8 45 Z" fill="url(#natCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-slate-400 font-bold mt-1">سليم</span>
+                </div>
+
+                <!-- السن 13: ناب علوي طبيعي (مدبب تشريحياً) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">13</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <!-- جذر وتدي طويل ومنحني طبيعياً -->
+                        <path d="M19 2 C16 18 17 38 18 45 C22 38 24 18 21 2 Z" fill="url(#natRoot)"/>
+                        <!-- قمة ناب مدببة عضوية حقيقية -->
+                        <path d="M9 45 C6 52 7 70 11 80 C14 88 20 94 20 94 C20 94 26 88 29 80 C33 70 34 52 31 45 C25 47 21 45 20 45 C19 45 15 47 9 45 Z" fill="url(#natCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-slate-400 font-bold mt-1">ناب سليم</span>
+                </div>
+
+                <!-- السن 11: قاطع علوي - التاج حشوة زرقاء والجذر طبيعي (مطابق للصورة تماماً) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">11</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <defs>
+                            <linearGradient id="blueCrown" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#0284c7"/>
+                                <stop offset="50%" stop-color="#38bdf8"/>
+                                <stop offset="100%" stop-color="#0369a1"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- جذر عاجي طبيعي -->
+                        <path d="M19 3 C16 18 17 38 18 45 C22 38 24 18 21 3 Z" fill="url(#natRoot)"/>
+                        <!-- تاج قاطع مستوي مع تلوين أزرق للحشوة -->
+                        <path d="M8 45 C6 52 6 72 7 85 C9 91 14 91 20 91 C26 91 31 91 33 85 C34 72 34 52 32 45 C27 46 22 45 20 45 C18 45 13 46 8 45 Z" fill="url(#blueCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-sky-400 font-bold mt-1">حشوة تاج</span>
+                </div>
+
+                <!-- خط الفاصل النصفي للفك (Midline) -->
+                <div class="h-24 w-0.5 bg-slate-700 mx-2 rounded-full"></div>
+
+                <!-- السن 21: قاطع علوي طبيعي ناصع -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">21</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <path d="M21 3 C24 18 23 38 22 45 C18 38 16 18 19 3 Z" fill="url(#natRoot)"/>
+                        <path d="M32 45 C34 52 34 72 33 85 C31 91 26 91 20 91 C14 91 9 91 7 85 C6 72 6 52 8 45 C13 46 18 45 20 45 C22 45 27 46 32 45 Z" fill="url(#natCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-slate-400 font-bold mt-1">سليم</span>
+                </div>
+
+                <!-- السن 25: ضاحك علوي - الجذور وردية (علاج عصب) والتاج طبيعي -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">25</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <defs>
+                            <linearGradient id="endoRoot" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#be185d"/>
+                                <stop offset="50%" stop-color="#ec4899"/>
+                                <stop offset="100%" stop-color="#9d174d"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- جذر ملون بلون علاج العصب (Magenta / Pink) -->
+                        <path d="M18 5 C16 20 18 38 19 45 C22 38 24 20 22 5 Z" fill="url(#endoRoot)"/>
+                        <!-- تاج طبيعي سليم -->
+                        <path d="M8 45 C5 50 6 70 9 80 C12 88 17 90 20 90 C23 90 28 88 31 80 C34 70 35 50 32 45 C27 47 23 45 20 45 C17 45 13 47 8 45 Z" fill="url(#natCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-pink-400 font-bold mt-1">علاج عصب</span>
+                </div>
+
+                <!-- السن 26: ضرس علوي - التاج أزرق والجذور طبيعية عاجية -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[11px] font-bold text-slate-400 mb-1">26</span>
+                    <svg class="w-12 h-24" viewBox="0 0 50 100" fill="none">
+                        <path d="M12 4 C10 18 16 38 18 45 C15 35 15 15 15 4" fill="url(#natRoot)"/>
+                        <path d="M25 2 C23 18 24 38 25 45 C27 35 28 15 28 2" fill="url(#natRoot)"/>
+                        <path d="M38 4 C40 18 34 38 32 45 C35 35 35 15 35 4" fill="url(#natRoot)"/>
+                        <!-- تاج ضرس أزرق -->
+                        <path d="M10 45 C7 48 5 65 7 78 C9 85 16 92 25 92 C34 92 41 85 43 78 C45 65 43 48 40 45 C34 47 28 44 25 44 C22 44 16 47 10 45 Z" fill="url(#blueCrown)"/>
+                    </svg>
+                    <span class="text-[9px] text-sky-400 font-bold mt-1">حشوة ضرس</span>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="border-b border-slate-800 my-8"></div>
+
+        <!-- مخطط الفك السفلي (التاج للأعلى والجذور للأسفل) -->
+        <div class="space-y-6">
+            <div class="text-center text-xs text-slate-400 font-bold tracking-widest">الفك السفلي (LOWER MANDIBLE)</div>
+            
+            <div class="flex justify-center items-center gap-2 overflow-x-auto pb-4">
+                
+                <!-- السن 46: ضرس سفلي - التاج طبيعي والجذور وردية لعلاج العصب (مطابق للصورة) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[9px] text-pink-400 font-bold mb-1">عصب سفلي</span>
+                    <svg class="w-12 h-24" viewBox="0 0 50 100" fill="none">
+                        <!-- تاج ضرس سفلي طبيعي في الأعلى -->
+                        <path d="M10 55 C7 52 5 35 7 22 C9 15 16 8 25 8 C34 8 41 15 43 22 C45 35 43 52 40 55 C34 53 28 56 25 56 C22 56 16 53 10 55 Z" fill="url(#natCrown)"/>
+                        <!-- جذران سفليان ملونان بلون علاج العصب للأسفل -->
+                        <path d="M14 55 C12 68 13 85 15 95 C18 85 22 68 20 55" fill="url(#endoRoot)"/>
+                        <path d="M36 55 C38 68 37 85 35 95 C32 85 28 68 30 55" fill="url(#endoRoot)"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-400 mt-1">46</span>
+                </div>
+
+                <!-- السن 45: ضاحك سفلي طبيعي -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 font-bold mb-1">سليم</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <path d="M8 55 C5 50 6 30 9 20 C12 12 17 10 20 10 C23 10 28 12 31 20 C34 30 35 50 32 55 C27 53 23 55 20 55 C17 55 13 53 8 55 Z" fill="url(#natCrown)"/>
+                        <path d="M18 55 C16 70 18 88 19 95 C22 88 24 70 22 55 Z" fill="url(#natRoot)"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-400 mt-1">45</span>
+                </div>
+
+                <!-- السن 43: ناب سفلي طبيعي -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 font-bold mb-1">ناب سليم</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <path d="M9 55 C6 48 7 30 11 20 C14 12 20 6 20 6 C20 6 26 12 29 20 C33 30 34 48 31 55 C25 53 21 55 20 55 C19 55 15 53 9 55 Z" fill="url(#natCrown)"/>
+                        <path d="M19 55 C16 72 17 88 18 96 C22 88 24 72 21 55 Z" fill="url(#natRoot)"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-400 mt-1">43</span>
+                </div>
+
+                <!-- الفاصل النصفي السفلي -->
+                <div class="h-24 w-0.5 bg-slate-700 mx-2 rounded-full"></div>
+
+                <!-- السن 31: قاطع سفلي طبيعي -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[9px] text-slate-400 font-bold mb-1">سليم</span>
+                    <svg class="w-10 h-24" viewBox="0 0 40 100" fill="none">
+                        <path d="M9 55 C7 48 7 28 8 15 C10 9 15 9 20 9 C25 9 30 9 32 15 C33 28 33 48 31 55 C26 54 22 55 20 55 C18 55 14 54 9 55 Z" fill="url(#natCrown)"/>
+                        <path d="M20 55 C17 72 18 88 19 96 C23 88 23 72 20 55 Z" fill="url(#natRoot)"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-400 mt-1">31</span>
+                </div>
+
+                <!-- السن 36: ضرس سفلي ملون بالكامل أحمر (علاج عصب + تتويج كامل) -->
+                <div class="tooth-container flex flex-col items-center">
+                    <span class="text-[9px] text-rose-400 font-bold mb-1">معالجة كاملة</span>
+                    <svg class="w-12 h-24" viewBox="0 0 50 100" fill="none">
+                        <path d="M10 55 C7 52 5 35 7 22 C9 15 16 8 25 8 C34 8 41 15 43 22 C45 35 43 52 40 55 C34 53 28 56 25 56 C22 56 16 53 10 55 Z" fill="url(#crown16)"/>
+                        <path d="M14 55 C12 68 13 85 15 95 C18 85 22 68 20 55" fill="url(#root16)"/>
+                        <path d="M36 55 C38 68 37 85 35 95 C32 85 28 68 30 55" fill="url(#root16)"/>
+                    </svg>
+                    <span class="text-[11px] font-bold text-slate-400 mt-1">36</span>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

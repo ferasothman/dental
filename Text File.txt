@@ -1,0 +1,12 @@
+تفعيل السيرفر
+source venv/bin/activate
+
+
+تشغيل السيرفر
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+
+
+
+تفعيل البيئة على وندوز 
+.\.venv\Scripts\Activate.ps1
